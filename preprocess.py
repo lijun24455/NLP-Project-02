@@ -1,11 +1,17 @@
 # 数据预处理流程 解压 -> 数据合并与标签提取 -> 切词 -> Tokenize -> Padding
 import os
+import pickle
 import re
 import zipfile
 from collections import Counter
 
 import jieba
 import pandas as pd
+import numpy as np
+
+from tensorflow.keras.preprocessing.text import Tokenizer
+from tensorflow.keras.preprocessing.sequence import pad_sequences
+from sklearn.preprocessing import MultiLabelBinarizer
 
 
 def unzip(ZIP_PATH, OUT_PATH):
@@ -37,14 +43,14 @@ def combile_csvs(OUT_PATH):
     return data
 
 
-def extract_label_content(df, freq = 0.01):
+def extract_label_content(df, freq=0.001):
     print(df.shape)
     knowledges = ' '.join(df['knowledge']).split()
     knowledges = Counter(knowledges)
+    print('总知识点数：', len(knowledges))
     k = int(df.shape[0] * freq)
-    print('top_k =', k)
-    top_k_knowledges = knowledges.most_common(df.shape[0] - k)
-    df.knowledge = df.knowledge.apply(lambda x: ' '.join([label for label in x.split() if label in top_k_knowledges]))
+    print('取 top_k =', k)
+    df.knowledge = df.knowledge.apply(lambda x: ' '.join([label for label in x.split() if knowledges[label] > k]))
     print(df.shape)
     df['label'] = df[['subject', 'topic', 'knowledge']].apply(lambda x: ' '.join(x), axis=1)
 
@@ -69,7 +75,27 @@ def sentence_to_words(sentence, stop_words):
 
 
 def process_content(df, stop_words):
-    pass
+    df.content = df.content.apply(lambda x: sentence_to_words(x, stop_words))
+    return df
+
+
+def gen_cnn_data(df, X_NPY_PATH, Y_NPY_PATH, TOKENIZER_BINARIZER, max_len=200):
+    mlb = MultiLabelBinarizer()
+    y = mlb.fit_transform(df.label.apply(lambda x: x.split()))
+
+    tokenizer = Tokenizer()
+    tokenizer.fit_on_texts(df.content.tolist())
+    x = tokenizer.texts_to_sequences(df.content)
+    x = pad_sequences(x, max_len, padding='post', truncating='post')
+
+    # 保存数据
+    np.save(X_NPY_PATH, x)
+    np.save(Y_NPY_PATH, y)
+    print('已创建并保存x,y至：\n {} \n {}'.format(X_NPY_PATH, Y_NPY_PATH))
+    tb = {'tokenizer': tokenizer, 'binarizer': mlb}  # 用个字典来保存
+    with open(TOKENIZER_BINARIZER, 'wb') as f:
+        pickle.dump(tb, f)
+    print('已创建并保存tokenizer和binarizer至：\n {}'.format(TOKENIZER_BINARIZER))
 
 
 if __name__ == '__main__':
@@ -80,16 +106,25 @@ if __name__ == '__main__':
     OUT_PATH = os.path.join(DATA_DIR, '题库')
     STOP_WORDS_PATH = os.path.join(DATA_DIR, 'stopwords.txt')
 
+    # TextCNN生成文件
+    X_NPY_PATH = os.path.join(DATA_DIR, 'CNN', 'x.npy')
+    Y_NPY_PATH = os.path.join(DATA_DIR, 'CNN', 'y.npy')
+    TOKENIZER_BINARIZER = os.path.join(DATA_DIR, 'CNN', 'tokenizer_binarizer')
+
     # 1 解压
     # unzip(ZIP_PATH, OUT_PATH)
 
     # 2.1 数据合并
-    df = combile_csvs(OUT_PATH) # df.shape:(29813,4)
+    df = combile_csvs(OUT_PATH)  # df.shape:(29813,4)
 
     # 2.2 标签提取
-    df = extract_label_content(df)
-    # print(df.sample(3))
+    df = extract_label_content(df, freq=0)  # ['label', 'content' ]
+    print(df.sample(3))
 
-    # 切词
-    stop_words = load_stopwords()
+    # 3 切词
+    stop_words = load_stopwords(STOP_WORDS_PATH)
     df = process_content(df, stop_words)
+    print('after cut-->\n\r', df.head(2))
+
+    # 4 Tokenize & Padding
+    gen_cnn_data(df, X_NPY_PATH, Y_NPY_PATH, TOKENIZER_BINARIZER=TOKENIZER_BINARIZER)

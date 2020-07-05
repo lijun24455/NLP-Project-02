@@ -13,7 +13,7 @@ class TextCNN(tf.keras.Model):
             self.embedding = tf.keras.layers.Embedding(vocab_size, embedding_dim)
         else:
             self.embedding = tf.keras.layers.Embedding(vocab_size, embedding_dim,
-                                                       weights=[embedding_matrix], trainable=True)
+                                                       weights=[embedding_matrix], trainable=False)
 
         self.kernel_sizes = kernel_sizes  # exm: [2, 3, 4]
         self.filters = filters

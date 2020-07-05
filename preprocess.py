@@ -12,6 +12,7 @@ import numpy as np
 from tensorflow.keras.preprocessing.text import Tokenizer
 from tensorflow.keras.preprocessing.sequence import pad_sequences
 from sklearn.preprocessing import MultiLabelBinarizer
+from config import *
 
 
 def unzip(ZIP_PATH, OUT_PATH):
@@ -79,11 +80,11 @@ def process_content(df, stop_words):
     return df
 
 
-def gen_cnn_data(df, X_NPY_PATH, Y_NPY_PATH, TOKENIZER_BINARIZER, max_len=200):
+def gen_cnn_data(df, X_NPY_PATH, Y_NPY_PATH, TOKENIZER_BINARIZER, vocab_size = 50000, max_len=200):
     mlb = MultiLabelBinarizer()
     y = mlb.fit_transform(df.label.apply(lambda x: x.split()))
 
-    tokenizer = Tokenizer()
+    tokenizer = Tokenizer(num_words=vocab_size, oov_token='<UNK')
     tokenizer.fit_on_texts(df.content.tolist())
     x = tokenizer.texts_to_sequences(df.content)
     x = pad_sequences(x, max_len, padding='post', truncating='post')
@@ -99,32 +100,22 @@ def gen_cnn_data(df, X_NPY_PATH, Y_NPY_PATH, TOKENIZER_BINARIZER, max_len=200):
 
 
 if __name__ == '__main__':
-    ROOT_PATH = os.getcwd()
-    DATA_DIR = os.path.join(ROOT_PATH, 'data')
-
-    ZIP_PATH = os.path.join(DATA_DIR, '百度题库.zip')
-    OUT_PATH = os.path.join(DATA_DIR, '题库')
-    STOP_WORDS_PATH = os.path.join(DATA_DIR, 'stopwords.txt')
-
-    # TextCNN生成文件
-    X_NPY_PATH = os.path.join(DATA_DIR, 'CNN', 'x.npy')
-    Y_NPY_PATH = os.path.join(DATA_DIR, 'CNN', 'y.npy')
-    TOKENIZER_BINARIZER = os.path.join(DATA_DIR, 'CNN', 'tokenizer_binarizer')
+    config = config()
+    args = config.getArgs()
 
     # 1 解压
     # unzip(ZIP_PATH, OUT_PATH)
 
     # 2.1 数据合并
-    df = combile_csvs(OUT_PATH)  # df.shape:(29813,4)
+    df = combile_csvs(config.OUT_PATH)  # df.shape:(29813,4)
 
     # 2.2 标签提取
     df = extract_label_content(df, freq=0)  # ['label', 'content' ]
-    print(df.sample(3))
 
     # 3 切词
-    stop_words = load_stopwords(STOP_WORDS_PATH)
+    stop_words = load_stopwords(config.STOP_WORDS_PATH)
     df = process_content(df, stop_words)
     print('after cut-->\n\r', df.head(2))
 
     # 4 Tokenize & Padding
-    gen_cnn_data(df, X_NPY_PATH, Y_NPY_PATH, TOKENIZER_BINARIZER=TOKENIZER_BINARIZER)
+    gen_cnn_data(df, config.X_NPY_PATH, config.Y_NPY_PATH, TOKENIZER_BINARIZER=config.TOKENIZER_BINARIZER, vocab_size=args.vocab_size)

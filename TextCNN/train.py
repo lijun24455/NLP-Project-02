@@ -1,12 +1,16 @@
+import sys
+import os
+
+sys.path.append("..")
+os.environ["CUDA_VISIBLE_DEVICES"]="-1"
 import time
 
 from sklearn.model_selection import train_test_split
-
 from TextCNN.model import TextCNN
 from config import *
-import pandas as pd
 import numpy as np
 import tensorflow as tf
+from sklearn.metrics import f1_score, accuracy_score, classification_report
 
 
 def load_testcnn_data(x_npy, y_npy):
@@ -23,8 +27,6 @@ if __name__ == '__main__':
 
     # print('train_x.shape:', train_x.shape)  # 23850,200
     # print('train_y.shape:', train_y.shape)  # 23850,942
-    # print('test_x.shape:', test_x.shape)
-    # print('test_y.shape:', test_y.shape)
 
     args = config.getArgs()
     args.output_dim = len(train_y[0])
@@ -72,10 +74,19 @@ if __name__ == '__main__':
             y_pred = train_step(x, y)
             if batch_cnt % 20 == 0:
                 print('epoch {} batch {} loss {}'.format(epoch + 1, batch_cnt + 1, train_loss.result()))
-        if (epoch + 1) % 5 == 0:
-            ckpt_save_path = ckpt_manager.save()
-            print('Saving ckpt for epoch {} to {}'.format(epoch + 1, ckpt_save_path))
+        ckpt_save_path = ckpt_manager.save()
+        print('Saving ckpt for epoch {} to {}'.format(epoch + 1, ckpt_save_path))
 
         print('Epoch {} Loss {}'.format(epoch + 1, train_loss.result()))
 
         print('Epoch {} Time Cost:{}'.format(epoch + 1, time.time() - start))
+
+    y_pred = model(test_x)
+    y_pred = np.where(y_pred > 0.5, 1, 0)
+
+    tokenizer, mlb = load_tokenizer_binarizer(config.TOKENIZER_BINARIZER)
+
+    print('y-pred:', mlb.inverse_transform(y_pred[:10]))
+    print('y-real:', mlb.inverse_transform(test_y[:10]))
+
+    print(classification_report(test_y, y_pred))

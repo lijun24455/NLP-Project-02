@@ -27,6 +27,7 @@ class config:
     Y_NPY_PATH = os.path.join(DATA_DIR, 'CNN', 'y.npy')
     TOKENIZER_BINARIZER = os.path.join(DATA_DIR, 'CNN', 'tokenizer_binarizer')
     CKPT_POINT_DIR = os.path.join(DATA_DIR, 'CNN', 'train')
+    MODEL_DIR = os.path.join(DATA_DIR, 'CNN', 'model.h5')
 
     def getArgs(self):
         parser = argparse.ArgumentParser(__doc__)
@@ -35,8 +36,8 @@ class config:
         parser.add_argument("--embedding_dim", type=int, default=256)
         parser.add_argument("--filters", type=int, default=2)
         parser.add_argument("--kernel_sizes", type=str, default='2,3,4')
-        parser.add_argument("--batch_size", type=int, default=256)
-        parser.add_argument("--dropout_rate", type=float, default=0.1)
+        parser.add_argument("--batch_size", type=int, default=32)
+        parser.add_argument("--dropout_rate", type=float, default=0.01)
         parser.add_argument("--epochs", type=int, default=1)
         parser.add_argument("--learning_rate", type=float, default=0.01)
         parser.add_argument("--vocab_size", type=int, default=70374)
